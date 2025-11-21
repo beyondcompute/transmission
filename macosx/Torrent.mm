@@ -25,6 +25,16 @@ static int const kETAIdleDisplaySec = 2 * 60;
 
 static dispatch_queue_t timeMachineExcludeQueue;
 
+static NSDateComponentsFormatter* EtaFormatterWithRemainingPhrase(BOOL includeRemainingPhrase)
+{
+    NSDateComponentsFormatter* formatter = [NSDateComponentsFormatter new];
+    formatter.unitsStyle = NSDateComponentsFormatterUnitsStyleShort;
+    formatter.maximumUnitCount = 2;
+    formatter.collapsesLargestUnit = YES;
+    formatter.includesTimeRemainingPhrase = includeRemainingPhrase;
+    return formatter;
+}
+
 @interface Torrent ()
 
 @property(nonatomic, readonly) tr_torrent* fHandle;
@@ -52,9 +62,6 @@ static dispatch_queue_t timeMachineExcludeQueue;
      completionHandler:(void (^)(BOOL))completionHandler
                oldPath:(NSString*)oldPath
                newName:(NSString*)newName;
-
-@property(nonatomic, readonly) BOOL shouldShowEta;
-@property(nonatomic, readonly) NSString* etaString;
 
 @end
 
@@ -1291,7 +1298,7 @@ bool trashDataFile(char const* filename, void* /*user_data*/, tr_error* error)
 {
     if (self.shouldShowEta)
     {
-        return self.etaString;
+        return [self etaStringIncludingRemainingPhrase:YES];
     }
     else
     {
@@ -2139,6 +2146,16 @@ bool trashDataFile(char const* filename, void* /*user_data*/, tr_error* error)
 
 - (NSString*)etaString
 {
+    return [self etaStringIncludingRemainingPhrase:YES];
+}
+
+- (NSString*)compactEtaString
+{
+    return [self etaStringIncludingRemainingPhrase:NO];
+}
+
+- (NSString*)etaStringIncludingRemainingPhrase:(BOOL)includeRemainingPhrase
+{
     time_t eta = self.fStat->eta;
     // if there's a regular ETA, the torrent isn't idle
     BOOL fromIdle = NO;
@@ -2153,15 +2170,14 @@ bool trashDataFile(char const* filename, void* /*user_data*/, tr_error* error)
         return NSLocalizedString(@"remaining time unknown", "Torrent -> eta string");
     }
 
-    static NSDateComponentsFormatter* formatter;
+    static NSDateComponentsFormatter* formatterWithPhrase;
+    static NSDateComponentsFormatter* formatterWithoutPhrase;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        formatter = [NSDateComponentsFormatter new];
-        formatter.unitsStyle = NSDateComponentsFormatterUnitsStyleShort;
-        formatter.maximumUnitCount = 2;
-        formatter.collapsesLargestUnit = YES;
-        formatter.includesTimeRemainingPhrase = YES;
+        formatterWithPhrase = EtaFormatterWithRemainingPhrase(YES);
+        formatterWithoutPhrase = EtaFormatterWithRemainingPhrase(NO);
     });
+    NSDateComponentsFormatter* formatter = includeRemainingPhrase ? formatterWithPhrase : formatterWithoutPhrase;
     // the duration of months being variable, setting the reference date to now (instead of 00:00:00 UTC on 1 January 2001)
     formatter.referenceDate = NSDate.date;
     NSString* idleString = [formatter stringFromTimeInterval:eta];

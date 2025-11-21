@@ -148,7 +148,10 @@ extern NSString* const kTorrentDidChangeGroupNotification;
 @property(nonatomic, readonly) NSString* progressString;
 @property(nonatomic, readonly) NSString* statusString;
 @property(nonatomic, readonly) NSString* shortStatusString;
+@property(nonatomic, readonly) NSString* etaString;
+@property(nonatomic, readonly) NSString* compactEtaString;
 @property(nonatomic, readonly) NSString* remainingTimeString;
+@property(nonatomic, readonly) BOOL shouldShowEta;
 
 @property(nonatomic, readonly) NSString* stateString;
 @property(nonatomic, readonly) NSUInteger totalPeersConnected;

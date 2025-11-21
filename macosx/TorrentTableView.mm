@@ -20,6 +20,7 @@
 #import "TorrentCellActionButton.h"
 #import "TorrentCellControlButton.h"
 #import "TorrentCellRevealButton.h"
+#include <limits.h>
 
 CGFloat const kGroupSeparatorHeight = 18.0;
 
@@ -231,16 +232,28 @@ static NSTimeInterval const kToggleProgressSeconds = 0.175;
             torrentCell.fIconView.image = error ? [NSImage imageNamed:NSImageNameCaution] : torrent.icon;
 
             // set torrent status
-            torrentCell.fTorrentStatusField.stringValue = [self.fDefaults boolForKey:@"DisplaySmallStatusRegular"] ?
-                torrent.shortStatusString :
-                torrent.remainingTimeString;
+            BOOL const showRegularStatus = [self.fDefaults boolForKey:@"DisplaySmallStatusRegular"];
+            NSString* statusString = showRegularStatus ? torrent.shortStatusString : torrent.remainingTimeString;
+
+            if (showRegularStatus && torrent.active && torrent.shouldShowEta)
+            {
+                time_t const eta = torrent.eta;
+                BOOL const etaKnown = eta > 0 && eta != LONG_MAX;
+                if (etaKnown)
+                {
+                    statusString = [NSString stringWithFormat:NSLocalizedString(@"(ETA: %@) %@", "Torrent cell -> compact eta and status"),
+                                                              torrent.compactEtaString,
+                                                              torrent.shortStatusString];
+                }
+            }
+
+            torrentCell.fTorrentStatusField.stringValue = statusString;
 
             if (self.fHoverEventDict)
             {
                 NSInteger row = [self rowForItem:item];
-                NSInteger hoverRow = [self.fHoverEventDict[@"row"] integerValue];
-
-                if (row == hoverRow)
+                BOOL const hoverRow = row == [self.fHoverEventDict[@"row"] integerValue];
+                if (hoverRow)
                 {
                     torrentCell.fTorrentStatusField.hidden = YES;
                     torrentCell.fControlButton.hidden = NO;
